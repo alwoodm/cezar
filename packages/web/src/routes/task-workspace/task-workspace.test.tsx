@@ -217,6 +217,23 @@ describe('the task workspace (main)', () => {
     await waitFor(() => expect(screen.queryByTestId('terminal')).toBeNull())
   })
 
+  it('folds cards until the row stops overflowing, so + is never pushed out of the strip', async () => {
+    // jsdom lays nothing out: a 300px row whose content is 100px per card plus its two buttons.
+    vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(300)
+    vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockImplementation(function (this: Element) {
+      if (this.getAttribute('data-slot') !== 'layout-cards') return 0
+      return this.querySelectorAll('[data-slot="layout-card"]').length * 100 + 60
+    })
+    stubFetch()
+    renderWorkspace()
+    await ready()
+
+    await waitFor(() => expect(cardNames().length).toBeLessThanOrEqual(2))
+    expect(activeCard()).toBe('Chat')
+    expect(screen.getByRole('button', { name: /more layouts/ })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'New layout' })).not.toBeNull()
+  })
+
   it('opens /terminal as its own card', async () => {
     stubFetch()
     renderWorkspace('terminal')

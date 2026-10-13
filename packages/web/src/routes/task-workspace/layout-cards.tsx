@@ -95,8 +95,27 @@ export function LayoutCards({
     }
   }, [])
 
+  // A web font that lands after the measure widens every card without resizing the row, so the
+  // observer above never fires; re-measure when fonts finish loading.
+  const [fontsLoaded, setFontsLoaded] = useState(0)
+  useEffect(() => {
+    const fonts = typeof document === 'undefined' ? undefined : document.fonts
+    if (!fonts) return
+    const bump = () => setFontsLoaded((count) => count + 1)
+    void fonts.ready.then(bump)
+    fonts.addEventListener?.('loadingdone', bump)
+    return () => fonts.removeEventListener?.('loadingdone', bump)
+  }, [])
+
   // Anything that changes what there is to fit, or the room to fit it in, starts a new measure.
-  useLayoutEffect(() => setFit(null), [signature, width])
+  useLayoutEffect(() => setFit(null), [signature, width, fontsLoaded])
+  // The backstop: a row that still overflows after a measure folds one more card, so `+` can
+  // never end up clipped under whatever sits to the strip's right.
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    if (fit === null || fit === 0 || !root) return
+    if (root.scrollWidth > root.clientWidth + 1) setFit(fit - 1)
+  })
   useLayoutEffect(() => {
     const root = rootRef.current
     if (fit !== null || !root) return

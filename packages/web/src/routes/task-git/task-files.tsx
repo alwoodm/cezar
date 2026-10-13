@@ -8,6 +8,7 @@ import type { ApiRun } from '@open-mercato/cezar-api-client'
 import { CenteredState } from '@/components/centered-state'
 import { useIsDesktop } from '@/lib/use-desktop'
 
+import { cn } from '@/lib/utils'
 import { useRememberedState } from '@/lib/view-memory'
 import { RunHeader } from '../task-thread/run-header'
 import { FilePreview } from './file-preview'
@@ -55,7 +56,7 @@ export function FilesView({
   const refused = root.isError && root.error instanceof ApiError && root.error.status === 409
 
   return (
-    <div data-route="task-files" className="flex min-h-full flex-col md:h-full">
+    <div data-route="task-files" className={cn('flex min-h-full flex-col md:h-full', embedded && '@container')}>
       {embedded ? null : <RunHeader run={run} tab="files" />}
 
       {root.isPending ? (
@@ -78,7 +79,11 @@ export function FilesView({
               stack and the page IS the pane, so neither has a scroller of its own. */}
           <aside
             data-slot="files-tree-pane"
-            className="w-full shrink-0 md:w-60 md:overflow-y-auto md:overscroll-contain md:py-4 lg:w-72"
+            className={cn(
+              'w-full shrink-0 md:overflow-y-auto md:overscroll-contain md:py-4',
+              // Embedded, sized by the column (container query) rather than the window.
+              embedded ? 'md:w-44 @xl:w-60 @4xl:w-72' : 'md:w-60 lg:w-72',
+            )}
           >
             <FilesTree runId={run.id} selected={selected} onSelect={setSelected} />
           </aside>
