@@ -181,6 +181,7 @@ export function ThreadView({
   currentThread = thread,
   history,
   onMarkedUnread,
+  embedded = false,
 }: {
   run: ApiRun
   thread: ThreadState
@@ -190,6 +191,8 @@ export function ThreadView({
    *  auto-mark-read effect. Optional: every test that drives this view with a fixture, and the
    *  header's other three tabs, have no such effect to suppress. */
   onMarkedUnread?: (runId: string) => void
+  /** A task-workspace column: the workspace draws the one run header above every column. */
+  embedded?: boolean
 }) {
   const footer = threadFooter(run.status, run.error, isAwaitingAnswer(run))
   const markedUnread = useCallback(() => onMarkedUnread?.(run.id), [onMarkedUnread, run.id])
@@ -322,7 +325,7 @@ export function ThreadView({
 
   return (
     <div data-route="task-thread" data-run-id={run.id} className="flex min-h-full flex-col">
-      <RunHeader
+      {embedded ? null : <RunHeader
         run={run}
         planTally={planTally}
         onMarkedUnread={markedUnread}
@@ -330,7 +333,7 @@ export function ThreadView({
         // continuation choice as the dock. One hook owns both renderings, so a header pick is
         // exactly what the next composer submission sends — no second, drifting engine state.
         continuationEngine={continuable ? continueAction.pills : undefined}
-      />
+      />}
 
       {/* Row spacing lives on each thread row (pb-2.5, both render modes measure alike);
           this gap only separates the sections — rows, empty state, footer, review panel. */}

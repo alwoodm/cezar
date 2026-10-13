@@ -16,6 +16,8 @@ import {
   terminalCreateSchema, terminalInputSchema, terminalOutputQuerySchema, terminalOutputSchema,
   terminalResizeSchema, terminalSessionParamsSchema, terminalSessionSchema, terminalStateSchema,
 } from '@open-mercato/cezar-contract';
+import { workspaceLayoutsResponseSchema, workspaceLayoutsSchema } from '@open-mercato/cezar-contract';
+import { deleteRunLayouts, readRunLayouts, writeRunLayouts } from '../runs/layouts.ts';
 import { discoverCommands } from './terminal/commands.ts';
 import { DetectedUrls } from './terminal/detected-urls.ts';
 import { processSnapshot } from './terminal/foreground.ts';
@@ -5137,13 +5139,15 @@ export function createApp(deps: ServerDeps) {
     })
 
     .delete('/runs/:id', async (c) => {
-      const { root: repoRoot, store, manager } = c.get('project');
+      const { root: repoRoot, store, manager, dataDir } = c.get('project');
       const id = c.req.param('id');
       if (manager.isActive(id)) return c.json({ error: 'run is active — cancel it first' }, 409);
       const run = store.getRun(id);
       if (!run) return c.json({ error: 'not found' }, 404);
       // Delete cleans up after itself: worktree + branch go with the run (spec 006), and so do its terminals.
       stopTaskProcesses(id);
+      // Layouts go with the task, and only with it — archiving keeps them (spec §5.3).
+      deleteRunLayouts(dataDir, id);
       if (run.worktreePath) await removeWorktree(repoRoot, run.worktreePath, run.branch);
       const deleted = store.deleteRun(id);
       // The run's `refs/cezar/pr/<n>` goes with the last run that needed it (Phase 3).
@@ -5167,6 +5171,47 @@ export function createApp(deps: ServerDeps) {
    * The `:surface` param is validated as MIDDLEWARE (`draftSurfaceParamSchema`), not interpolated:
    * it reaches the filesystem as a path segment.
    */
+  /**
+   * A task's saved workspace layouts (spec `.ai/specs/2026-10-07-task-workspace.md` §5.3:
+   * "Persist named layouts per task ON THE CEZAR HOST THAT OWNS THE TASK").
+   *
+   * Its own family and its own files (`.ai/cezar/layouts/`), for the same reason drafts got
+   * theirs: this is per-run state whose lifetime is the run's, so deleting a task is one `rm`
+   * rather than a key to find in a shared bag. Both routes 404 on an unknown run, so layouts can
+   * never outlive their task through this surface.
+   *
+   * There is no DELETE: §5.3 removes layouts only when the task itself is permanently deleted,
+   * which the run-delete route does directly. Emptying the workspace is a PUT of an empty list.
+   * The store keeps `null` and `[]` apart because they are different facts on disk; the COCKPIT
+   * opens a fresh `Czat` for both, which is §5.3's rule for a task whose layouts were all
+   * deleted.
+   */
+  const layoutRoutes = new Hono<ProjectApiEnv>()
+    .get('/runs/:id/layouts', paramZodValidator(runIdParamSchema), (c) => {
+      const { dataDir, store } = c.get('project');
+      const run = store.getRun(c.req.param('id'));
+      if (!run) return c.json({ error: 'not found' }, 404);
+      return c.json(workspaceLayoutsResponseSchema.parse({ layouts: readRunLayouts(dataDir, run.id) }));
+    })
+
+    .put(
+      '/runs/:id/layouts',
+      paramZodValidator(runIdParamSchema),
+      jsonZodValidator(workspaceLayoutsSchema),
+      (c) => {
+        const { dataDir, store } = c.get('project');
+        const run = store.getRun(c.req.param('id'));
+        if (!run) return c.json({ error: 'not found' }, 404);
+        const value = c.req.valid('json');
+        if (!writeRunLayouts(dataDir, run.id, value)) {
+          // A read-only home or a full disk. The cockpit keeps working from memory for the rest
+          // of the visit rather than losing the layout the user is looking at.
+          return c.json({ error: 'could not save layouts on this host' }, 409);
+        }
+        return c.json(workspaceLayoutsResponseSchema.parse({ layouts: value }));
+      },
+    );
+
   const draftRoutes = new Hono<ProjectApiEnv>()
     .get('/runs/:id/drafts', paramZodValidator(runIdParamSchema), (c) => {
       const { dataDir, store } = c.get('project');
@@ -6927,6 +6972,7 @@ export function createApp(deps: ServerDeps) {
     .route('/', dispatchRoutes)
     .route('/', runsRoutes)
     .route('/', draftRoutes)
+    .route('/', layoutRoutes)
     .route('/', groupsRoutes)
     .route('/', openTargetsRoutes)
     .route('/', worktreesRoutes)

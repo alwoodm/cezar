@@ -7,6 +7,8 @@ import type {
   TerminalOutput,
   TerminalSession,
   TerminalState,
+  WorkspaceLayouts,
+  WorkspaceLayoutsResponse,
 } from '@open-mercato/cezar-api-client'
 import { trackerWatchHandleSchema, trackerWatchSnapshotSchema, type TrackerWatchInput } from "@open-mercato/cezar-api-client"
 import type {
@@ -2653,5 +2655,40 @@ export async function getRunTerminalCommands(id: string): Promise<DiscoveredComm
       param: { projectId: queryScope(), id: encodeURIComponent(id) },
     }),
     runPath(id, '/terminal/commands'),
+  )
+}
+
+/**
+ * A task's saved workspace layouts, from the cezar that owns the task (spec
+ * `.ai/specs/2026-10-07-task-workspace.md` §5.3). `layouts: null` means the task has never been
+ * opened — distinct from an empty list, which is a workspace the user emptied on purpose.
+ */
+export async function getRunLayouts(id: string): Promise<WorkspaceLayoutsResponse> {
+  return unwrap(
+    await cez.api.v1.p[':projectId'].runs[':id'].layouts.$get({
+      param: { projectId: queryScope(), id: encodeURIComponent(id) },
+    }),
+    runPath(id, '/layouts'),
+  )
+}
+
+export async function putRunLayouts(
+  id: string,
+  body: WorkspaceLayouts,
+  // The pagehide flush, as for `putRunDraft` — and with the same fallback: a body over the
+  // keepalive allowance is REJECTED by the browser, so it goes as an ordinary request instead.
+  opts?: { keepalive?: boolean },
+): Promise<WorkspaceLayoutsResponse> {
+  const keepalive =
+    opts?.keepalive === true && new TextEncoder().encode(JSON.stringify(body)).length <= KEEPALIVE_BODY_MAX
+  return unwrap(
+    await cez.api.v1.p[':projectId'].runs[':id'].layouts.$put(
+      {
+        param: { projectId: queryScope(), id: encodeURIComponent(id) },
+        json: body,
+      },
+      { init: { keepalive } },
+    ),
+    runPath(id, '/layouts'),
   )
 }

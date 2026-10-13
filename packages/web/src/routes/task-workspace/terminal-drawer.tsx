@@ -57,11 +57,15 @@ export function TerminalDrawer({
   onHeightChange,
   onClose,
   onOpenInBrowser,
+  fill = false,
 }: {
   runId: string
   height: number
   onHeightChange: (height: number) => void
-  onClose: () => void
+  /** Absent in a workspace column, which the column's own header closes. */
+  onClose?: () => void
+  /** Fill a task-workspace column instead of docking at the bottom with a resizable height. */
+  fill?: boolean
   /** Opens a detected address in a Browser column (spec §7). Returns false when the layout had
    *  no room, so the strip can say so. */
   onOpenInBrowser: (url: string) => boolean
@@ -193,7 +197,7 @@ export function TerminalDrawer({
       setSessions((current) => {
         const index = current.findIndex((entry) => entry.id === session.id)
         const remaining = current.filter((entry) => entry.id !== session.id)
-        if (remaining.length === 0) onClose()
+        if (remaining.length === 0) onClose?.()
         // The tab to the right, or the previous one when there is none — the grammar the layout
         // cards use, and the one every editor uses.
         else if (index >= 0) {
@@ -233,10 +237,14 @@ export function TerminalDrawer({
     <section
       data-slot="terminal-drawer"
       aria-label="Terminal"
-      className="relative flex shrink-0 flex-col border-t border-border bg-background shadow-[0_-12px_24px_-20px_rgb(var(--shadow-color)/0.35)]"
-      style={{ height: `${height}px` }}
+      data-fill={fill ? '' : undefined}
+      className={cn(
+        'relative flex flex-col bg-background',
+        fill ? 'h-full min-h-0' : 'shrink-0 border-t border-border shadow-[0_-12px_24px_-20px_rgb(var(--shadow-color)/0.35)]',
+      )}
+      style={fill ? undefined : { height: `${height}px` }}
     >
-      <DrawerResizeHandle height={height} onHeightChange={onHeightChange} />
+      {fill ? null : <DrawerResizeHandle height={height} onHeightChange={onHeightChange} />}
 
       {unavailable ? null : <DetectedUrlsStrip runId={runId} onOpen={onOpenInBrowser} />}
 
@@ -340,17 +348,19 @@ export function TerminalDrawer({
             Stop
           </Button>
         ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Hide terminal"
-          title="Hide terminal — processes keep running"
-          onClick={onClose}
-          className="rounded"
-        >
-          <XIcon aria-hidden="true" className="size-3.5" />
-        </Button>
+        {onClose ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Hide terminal"
+            title="Hide terminal — processes keep running"
+            onClick={onClose}
+            className="rounded"
+          >
+            <XIcon aria-hidden="true" className="size-3.5" />
+          </Button>
+        ) : null}
       </header>
 
       {unavailable ? (

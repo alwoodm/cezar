@@ -128,6 +128,10 @@ interface RunHeaderProps {
   /** The Session tab's engine picker for the next continuation. Kept out of the three Git tabs:
    *  they share this header but do not own the continuation draft or its pending selection. */
   continuationEngine?: ReactNode
+  /** Replaces the route tab links — the task workspace's layout strip (spec `2026-10-07-task-workspace` §5.2). */
+  tabs?: ReactNode
+  /** Right after the tab row's links or strip — the workspace's terminal toggle and full view. */
+  trailing?: ReactNode
 }
 
 // Every prop must participate: adding one without a comparator is a compile error.
@@ -136,6 +140,8 @@ const headerPropComparators = {
   tab: (before, after) => before.tab === after.tab,
   onMarkedUnread: (before, after) => before.onMarkedUnread === after.onMarkedUnread,
   continuationEngine: (before, after) => before.continuationEngine === after.continuationEngine,
+  tabs: (before, after) => before.tabs === after.tabs,
+  trailing: (before, after) => before.trailing === after.trailing,
   planTally: (before, after) => before.planTally?.done === after.planTally?.done &&
     before.planTally?.total === after.planTally?.total,
 } satisfies Record<keyof RunHeaderProps, (before: RunHeaderProps, after: RunHeaderProps) => boolean>
@@ -151,6 +157,8 @@ function RunHeaderView({
   tab = 'session',
   onMarkedUnread,
   continuationEngine,
+  tabs,
+  trailing,
 }: RunHeaderProps) {
   const attention = deriveAttention(run)
   const budget = budgetStop(run)
@@ -270,33 +278,38 @@ function RunHeaderView({
             // supports) — contained scroll here, not page-wide overflow on `main`.
             className="mt-1.5 flex items-end gap-1 overflow-x-auto md:mt-2.5 md:overflow-x-visible"
           >
-            <TabLink to={`/tasks/${run.id}`} active={tab === 'session'}>
-              Session
-            </TabLink>
-            <TabLink to={`/tasks/${run.id}/changes`} active={tab === 'changes'}>
-              Changes
-            </TabLink>
-            <TabLink to={`/tasks/${run.id}/commits`} active={tab === 'commits'}>
-              Commits
-            </TabLink>
-            <TabLink to={`/tasks/${run.id}/files`} active={tab === 'files'}>
-              Files
-            </TabLink>
-            {/* The live workflow graph (#1322) — every run with a definition: a step list opens as
-                its graph. */}
-            {run.workflowDef ? (
-              <TabLink to={`/tasks/${run.id}/graph`} active={tab === 'graph'}>
-                Graph
-              </TabLink>
-            ) : null}
-            <TabLink to={`/tasks/${run.id}/notes`} active={tab === 'notes'}>
-              Notes
-            </TabLink>
-            {health.data?.capabilities?.terminal ? (
-              <TabLink to={`/tasks/${run.id}/terminal`} active={tab === 'terminal'}>
-                Terminal
-              </TabLink>
-            ) : null}
+            {tabs ?? (
+              <>
+                <TabLink to={`/tasks/${run.id}`} active={tab === 'session'}>
+                  Session
+                </TabLink>
+                <TabLink to={`/tasks/${run.id}/changes`} active={tab === 'changes'}>
+                  Changes
+                </TabLink>
+                <TabLink to={`/tasks/${run.id}/commits`} active={tab === 'commits'}>
+                  Commits
+                </TabLink>
+                <TabLink to={`/tasks/${run.id}/files`} active={tab === 'files'}>
+                  Files
+                </TabLink>
+                {/* The live workflow graph (#1322) — every run with a definition: a step list opens as
+                    its graph. */}
+                {run.workflowDef ? (
+                  <TabLink to={`/tasks/${run.id}/graph`} active={tab === 'graph'}>
+                    Graph
+                  </TabLink>
+                ) : null}
+                <TabLink to={`/tasks/${run.id}/notes`} active={tab === 'notes'}>
+                  Notes
+                </TabLink>
+                {health.data?.capabilities?.terminal ? (
+                  <TabLink to={`/tasks/${run.id}/terminal`} active={tab === 'terminal'}>
+                    Terminal
+                  </TabLink>
+                ) : null}
+              </>
+            )}
+            {trailing}
 
             {/* What the run has spent, and on what — on the tabs line, out of the way of the
                 actions above. Desktop only; phones read it in the details row. */}

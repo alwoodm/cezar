@@ -19,6 +19,7 @@ import { TaskComposer, TaskDock } from '../task-thread/task-composer'
 import { useDraft } from '../task-thread/thread-draft'
 import { useKeyboardInsetVar } from '@/lib/keyboard-inset'
 import { isRunActive } from '../task-thread/run-actions'
+import { useRememberedState } from '@/lib/view-memory'
 import { RunHeader } from '../task-thread/run-header'
 import { ChangesTree } from './changes-tree'
 import { buildFileTree } from './file-tree'
@@ -54,7 +55,17 @@ export function TaskChangesRoute() {
   return <ChangesView key={run.data.id} run={run.data} />
 }
 
-function ChangesView({ run }: { run: ApiRun }) {
+export function ChangesView({
+  run,
+  embedded = false,
+  stateKey,
+}: {
+  run: ApiRun
+  /** `embedded` drops the run header for a task-workspace column (spec `2026-10-07-task-workspace` §5.1);
+   *  `stateKey` remembers the selection across layout switches (`lib/view-memory.ts`). */
+  embedded?: boolean
+  stateKey?: string
+}) {
   const health = useHealth()
   // The remote that decides whether Push is offered comes from the PROJECT-scoped `/repo`, not
   // from `/api/health.repo`: health is bound to the boot folder, so a cezar booted outside a git
@@ -67,7 +78,7 @@ function ChangesView({ run }: { run: ApiRun }) {
   const [mode, setMode] = useState<DiffMode>('unified')
   const [wrap, setWrap] = useState(false)
   const [preview, setPreview] = useState(false)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useRememberedState<string | null>(stateKey, null)
   const diffRef = useRef<DiffHandle | null>(null)
   // Line comments for the agent (self-review): drafted here, and sent from the SAME composer the
   // Session tab docks — floated here while there is something to send, so the review can be given
@@ -176,7 +187,7 @@ function ChangesView({ run }: { run: ApiRun }) {
 
   return (
     <div data-route="task-changes" className="flex min-h-full flex-col md:h-full">
-      <RunHeader run={run} tab="changes" />
+      {embedded ? null : <RunHeader run={run} tab="changes" />}
 
       <GitToolbar
         branch={run.branch}
