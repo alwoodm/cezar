@@ -68,6 +68,9 @@ const TaskCommitsRoute = lazyRoute('task-commits', () =>
 const TaskNotesRoute = lazy(() =>
   import('./routes/task-thread/task-notes').then((m) => ({ default: m.TaskNotesRoute })),
 )
+const TaskTerminalRoute = lazy(() =>
+  import('./routes/task-workspace/task-terminal').then((m) => ({ default: m.TaskTerminalRoute })),
+)
 
 /** Lazy because the repo view renders through the `<Diff>` facade and the Shiki singleton —
  *  the same heavy chunk the task git tabs ride; the home screen must not pay for it. */
@@ -395,6 +398,14 @@ export const AppRoutes = memo(function AppRoutes() {
           element={
             <Suspense fallback={<GitTabLoading tab="notes" />}>
               <TaskNotesRoute />
+            </Suspense>
+          }
+        />
+        <Route
+          path="tasks/:id/terminal"
+          element={
+            <Suspense fallback={<GitTabLoading tab="terminal" />}>
+              <TaskTerminalRoute />
             </Suspense>
           }
         />

@@ -1291,7 +1291,7 @@ describe('meta line, tabs, pill and resume hint', () => {
       '/api/v1/health': () =>
         jsonResponse({
           capabilities: {
-            localHandoff: true, followups: false, singleProject: false, automations: true,
+            localHandoff: true, terminal: false, followups: false, singleProject: false, automations: true,
             tokenMetrics: true, tokenUsageMetrics: true, costMetrics: true,
           },
         }),
@@ -1307,7 +1307,7 @@ describe('meta line, tabs, pill and resume hint', () => {
       '/api/v1/health': () =>
         jsonResponse({
           capabilities: {
-            localHandoff: true, followups: false, singleProject: false, automations: false,
+            localHandoff: true, terminal: false, followups: false, singleProject: false, automations: false,
             tokenMetrics: true, tokenUsageMetrics: true, costMetrics: true,
           },
         }),
@@ -1328,6 +1328,7 @@ describe('meta line, tabs, pill and resume hint', () => {
         jsonResponse({
           capabilities: {
             localHandoff: true,
+    terminal: false,
             followups: false,
             singleProject: false,
             tokenMetrics: false,
