@@ -1,12 +1,12 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createServer } from 'node:net'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { AgentBrowser, bootProjectId, cezarCli, fixtureServeEnv } from './agent-browser'
+import { AgentBrowser, bootProjectId, cezarCli, fixtureServeEnv, stopFixtureServer } from './agent-browser'
 
 /**
  * The task quick-list, in a real browser, against a real cezar serving real runs.
@@ -157,18 +157,6 @@ async function waitForHealth(url: string): Promise<void> {
   throw new Error(`cezar e2e: the fixture server never answered at ${url}`)
 }
 
-/** Stop a fixture server and wait for it to exit: it flushes state on SIGTERM, so removing its
- *  data dir while it is still writing fails with ENOTEMPTY. */
-async function stopServer(child: ChildProcess | undefined, root: string | undefined): Promise<void> {
-  if (child && child.exitCode === null && child.signalCode === null) {
-    const exited = new Promise<void>((done) => child.once('exit', () => done()))
-    child.kill()
-    const timer = setTimeout(() => child.kill('SIGKILL'), 10_000)
-    await exited
-    clearTimeout(timer)
-  }
-  if (root) rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
-}
 
 let browser: AgentBrowser
 let server: ChildProcess
@@ -218,7 +206,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   browser?.close()
-  await stopServer(server, dataRoot)
+  await stopFixtureServer(server, dataRoot)
 })
 
 describe('task quick-list', () => {
@@ -654,7 +642,7 @@ describe('a row under width contention, in a column the user can widen', () => {
   }, 90_000)
 
   afterAll(async () => {
-    await stopServer(wideServer, wideRoot)
+    await stopFixtureServer(wideServer, wideRoot)
   })
 
   beforeEach(() => {
@@ -886,7 +874,7 @@ describe('empty quick-list', () => {
   }, 60_000)
 
   afterAll(async () => {
-    await stopServer(emptyServer, emptyRoot)
+    await stopFixtureServer(emptyServer, emptyRoot)
   })
 
   it('shows the honest empty state — a fresh cezar has nothing to list', () => {
